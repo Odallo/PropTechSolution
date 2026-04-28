@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ==================== USSD WEBHOOK ====================
+// USSD WEBHOOK
 // Africa's Talking will POST to this endpoint when user dials *384#
 app.post('/ussd', async (req, res) => {
     console.log('USSD Request received:', req.body);
@@ -25,12 +25,12 @@ app.post('/ussd', async (req, res) => {
     
     // Level 0: First menu (text is empty)
     if (text === '') {
-        response = `CON Welcome to BomaFlow! 🌍
-1️⃣ Pay Daily Rent (200 KES)
-2️⃣ Check My Balance
-3️⃣ Report a Repair
-4️⃣ Escalate Repair
-5️⃣ Get Rent Receipt`;
+        response = `CON Welcome to BomaFlow! 
+1 Pay Daily Rent (200 KES)
+2 Check My Balance
+3 Report a Repair
+4 Escalate Repair
+5 Get Rent Receipt`;
         
         return res.send(response);
     }
@@ -48,36 +48,36 @@ app.post('/ussd', async (req, res) => {
                 // Pay Daily Rent
                 response = `CON Confirm payment:
 Daily rent: 200 KES
-1️⃣ Confirm
-2️⃣ Cancel`;
+1 Confirm
+2 Cancel`;
                 break;
                 
             case '2':
                 // Check Balance
                 const balance = await database.getMonthlyBalance(phone);
                 response = `END Your current balance this month: ${balance} KES
-✅ Keep saving daily to reach your rent target!`;
+Keep saving daily to reach your rent target!`;
                 break;
                 
             case '3':
                 // Report Repair
                 response = `CON Describe the issue:
-1️⃣ Water leak
-2️⃣ Electrical problem
-3️⃣ Broken appliance
-4️⃣ Other (describe in next step)`;
+1 Water leak
+2 Electrical problem
+3 Broken appliance
+4 Other (describe in next step)`;
                 break;
                 
             case '4':
                 // Escalate Repair (to be implemented)
-                response = `END ⚠️ Feature coming soon: Voice call to landlord.
+                response = `END Feature coming soon: Voice call to landlord.
 Please report the repair first using option 3.`;
                 break;
                 
             case '5':
                 // Get Receipt
                 const currentBalance = await database.getMonthlyBalance(phone);
-                response = `END 📋 BomaFlow Receipt
+                response = `END BomaFlow Receipt
 Phone: ${phone}
 Amount saved this month: ${currentBalance} KES
 Thank you for using BomaFlow!`;
@@ -99,12 +99,12 @@ Thank you for using BomaFlow!`;
             await database.savePayment(phone, 200);
             const newBalance = await database.getMonthlyBalance(phone);
             
-            response = `END ✅ Payment successful!
+            response = `END Payment successful!
 200 KES saved
 Total this month: ${newBalance} KES
 SMS receipt has been sent to your phone.
             
-Keep going! You're building your rent 💪`;
+Keep going! You're building your rent `;
             
             // Send SMS receipt (Bonus: use Africa's Talking SMS API here)
             console.log(`SMS receipt would be sent to ${phone}`);
@@ -130,7 +130,7 @@ Keep going! You're building your rent 💪`;
             
             await database.saveRepair(phone, building, house, description);
             
-            response = `END ✅ Repair reported: ${description}
+            response = `END Repair reported: ${description}
 Landlord has been notified.
 Reference ID: ${Date.now()}
             
@@ -158,7 +158,7 @@ app.get('/health', (req, res) => {
 
 //START SERVER
 app.listen(PORT, () => {
-    console.log(`🚀 BomaFlow backend running on http://localhost:${PORT}`);
-    console.log(`📱 USSD webhook endpoint: http://localhost:${PORT}/ussd`);
-    console.log(`✅ Database: bomaflow.db`);
+    console.log(`BomaFlow backend running on http://localhost:${PORT}`);
+    console.log(`USSD webhook endpoint: http://localhost:${PORT}/ussd`);
+    console.log(`Database: bomaflow.db`);
 });
