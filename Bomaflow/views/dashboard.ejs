@@ -561,21 +561,20 @@
         <!-- Repair Requests -->
         <div class="repairs-section">
             <h2>Recent Repair Requests</h2>
-            <div class="repair-item">
-                <div class="repair-house">House A1 - Mary Wanjiku</div>
-                <div class="repair-description">Water leak in bathroom</div>
-                <div class="repair-date">Reported: Today</div>
-                <div class="repair-status">Pending</div>
-            </div>
-            <div class="repair-item">
-                <div class="repair-house">House B2 - John Otieno</div>
-                <div class="repair-description">Electrical socket not working</div>
-                <div class="repair-date">Reported: Yesterday</div>
-                <div class="repair-status">Pending</div>
-            </div>
-            <div class="repairs-note">
-                Repair requests from USSD will appear here automatically.
-            </div>
+            <% if (repairs && repairs.length > 0) { %>
+                <% repairs.forEach(repair => { %>
+                    <div class="repair-item">
+                        <div class="repair-house">House <%= repair.house %> - <%= repair.name %></div>
+                        <div class="repair-description"><%= repair.issue_type %>: <%= repair.description %></div>
+                        <div class="repair-date">Reported: <%= new Date(repair.date).toLocaleDateString() %></div>
+                        <div class="repair-status"><%= repair.status || 'Pending' %></div>
+                    </div>
+                <% }) %>
+            <% } else { %>
+                <div class="repairs-note">
+                    No repair requests received yet. Tenants can report issues via USSD.
+                </div>
+            <% } %>
         </div>
         
         <div class="footer">

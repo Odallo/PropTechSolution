@@ -23,6 +23,15 @@ db.serialize(() => {
         amount INTEGER,
         date TEXT
     )`);
+    
+    db.run(`CREATE TABLE IF NOT EXISTS repairs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        phone TEXT,
+        issue_type TEXT,
+        description TEXT,
+        date TEXT,
+        status TEXT DEFAULT 'pending'
+    )`);
 });
 
 // Helper functions
@@ -142,6 +151,36 @@ function getMonthlyPayments(phone) {
     });
 }
 
+// Save repair request
+function saveRepair(phone, issue_type, description) {
+    return new Promise((resolve, reject) => {
+        const date = new Date().toISOString().split('T')[0];
+        db.run(`INSERT INTO repairs (phone, issue_type, description, date) VALUES (?, ?, ?, ?)`, 
+               [phone, issue_type, description, date], (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+}
+
+// Get repair requests for landlord
+function getLandlordRepairs(landlordPhone) {
+    return new Promise((resolve, reject) => {
+        const query = `
+            SELECT r.*, u.name, u.house, u.building 
+            FROM repairs r
+            JOIN users u ON r.phone = u.phone
+            WHERE u.landlord_phone = ?
+            ORDER BY r.date DESC
+            LIMIT 10
+        `;
+        db.all(query, [landlordPhone], (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows || []);
+        });
+    });
+}
+
 module.exports = { 
     saveUser, 
     getUser, 
@@ -151,5 +190,7 @@ module.exports = {
     completeMonth,       // NEW
     getLandlordTenants,  // NEW
     getTenantsByLandlord, // NEW
-    getMonthlyPayments   // NEW
+    getMonthlyPayments,   // NEW
+    saveRepair,          // NEW
+    getLandlordRepairs   // NEW
 };

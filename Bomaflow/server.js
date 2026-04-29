@@ -27,7 +27,8 @@ app.post('/ussd', async (req, res) => {
         let response = `CON Welcome to BomaFlow!\n`;
         response += `1. Pay ${dailyAmount} KES\n`;
         response += `2. Check Balance\n`;
-        response += `3. My Info`;
+        response += `3. My Info\n`;
+        response += `4. Report Repair`;
         return res.send(response);
     }
     
@@ -93,6 +94,54 @@ app.post('/ussd', async (req, res) => {
         return res.send(response);
     }
     
+    // Handle repair request
+    if (text === '4') {
+        let response = `CON Report Repair Issue:\n`;
+        response += `1. Water Issue\n`;
+        response += `2. Electrical Problem\n`;
+        response += `3. Structural Issue\n`;
+        response += `4. Other (Enter description)`;
+        return res.send(response);
+    }
+    
+    // Handle repair sub-menu
+    if (text.startsWith('4*')) {
+        const parts = text.split('*');
+        const repairType = parts[1];
+        let user = await db.getUser(phone);
+        
+        if (repairType === '1') {
+            await db.saveRepair(phone, 'Water Issue', 'Water leak or plumbing problem reported via USSD');
+            const response = `END Repair request submitted!\nIssue: Water Issue\nWe'll notify your landlord.\nReference: ${phone.slice(-4)}`;
+            return res.send(response);
+        }
+        
+        if (repairType === '2') {
+            await db.saveRepair(phone, 'Electrical Problem', 'Electrical issue reported via USSD');
+            const response = `END Repair request submitted!\nIssue: Electrical Problem\nWe'll notify your landlord.\nReference: ${phone.slice(-4)}`;
+            return res.send(response);
+        }
+        
+        if (repairType === '3') {
+            await db.saveRepair(phone, 'Structural Issue', 'Structural problem reported via USSD');
+            const response = `END Repair request submitted!\nIssue: Structural Issue\nWe'll notify your landlord.\nReference: ${phone.slice(-4)}`;
+            return res.send(response);
+        }
+        
+        if (repairType === '4') {
+            const response = `CON Please describe your repair issue:\n(Max 100 characters)`;
+            return res.send(response);
+        }
+        
+        // Handle custom description (4*4 followed by description)
+        if (parts[1] === '4' && parts[2]) {
+            const description = parts[2].substring(0, 100); // Limit to 100 chars
+            await db.saveRepair(phone, 'Other Issue', description);
+            const response = `END Repair request submitted!\nIssue: ${description}\nWe'll notify your landlord.\nReference: ${phone.slice(-4)}`;
+            return res.send(response);
+        }
+    }
+    
     // Default fallback
     res.send(`END Invalid option. Try again.`);
 });
@@ -116,10 +165,14 @@ app.get('/dashboard/:landlordPhone', async (req, res) => {
         totalCollected += tenant.balance;
     }
     
+    // Get repair requests for this landlord
+    const repairs = await db.getLandlordRepairs(landlordPhone);
+    
     res.render('dashboard', {
         landlordPhone,
         tenants,
         totalCollected,
+        repairs,
         currentDate: new Date().toLocaleDateString()
     });
 });
@@ -159,7 +212,7 @@ app.get('/', (req, res) => {
             <h2>Demo Dashboards:</h2>
             <div class="demo-links">
                 <a href="/dashboard/254712345678">James Landlord (Sunrise Apartments)</a>
-                <a href="/dashboard/254799999999">Another Landlord (Unity Towers)</a>
+                <a href="/dashboard/254799999999">Peter Landlord (Unity Towers)</a>
             </div>
             
             <h2>USSD Testing:</h2>
@@ -170,7 +223,7 @@ app.get('/', (req, res) => {
             <h2>Test Numbers:</h2>
             <ul>
                 <li>Mary (Tenant): 254711111111 (600 KES balance)</li>
-                <li>John (Tenant): 254722222222 (0 KES balance)</li>
+                <li>John (Tenant): 254722222222 (300 KES balance)</li>
                 <li>Sarah (Tenant): 254733333333 (0 KES balance)</li>
             </ul>
         </body>
