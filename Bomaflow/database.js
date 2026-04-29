@@ -11,7 +11,8 @@ db.serialize(() => {
         name TEXT,
         building TEXT,
         house TEXT,
-        balance INTEGER DEFAULT 0
+        balance INTEGER DEFAULT 0,
+        landlord_phone TEXT
     )`);
     
     db.run(`CREATE TABLE IF NOT EXISTS payments (
@@ -23,10 +24,11 @@ db.serialize(() => {
 });
 
 // Helper functions
-function saveUser(phone, name, building, house) {
+function saveUser(phone, name, building, house, landlord_phone = null) {
     return new Promise((resolve, reject) => {
-        db.run(`INSERT OR REPLACE INTO users (phone, name, building, house, balance) 
-                VALUES (?, ?, ?, ?, 0)`, [phone, name, building, house], (err) => {
+        db.run(`INSERT OR REPLACE INTO users (phone, name, building, house, balance, landlord_phone) 
+                VALUES (?, ?, ?, ?, ?, ?)`, 
+                [phone, name, building, house, 0, landlord_phone], (err) => {
             if (err) reject(err);
             else resolve();
         });

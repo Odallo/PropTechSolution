@@ -1,10 +1,15 @@
 require('dotenv').config();
 const express = require('express');
 const db = require('./database');
+const path = require('path');
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Set EJS as template engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 // USSD webhook - Africa's Talking will call this
 app.post('/ussd', async (req, res) => {
@@ -27,26 +32,31 @@ app.post('/ussd', async (req, res) => {
         // Pay 200 KES
         await db.addPayment(phone, 200);
         const balance = await db.getBalance(phone);
+        const user = await db.getUser(phone);
         
-        let response = `END ✅ Paid 200 KES!\nYour balance: ${balance} KES\n`;
+        // Send SMS receipt
+        const sms = require('./sms');
+        await sms.sendPaymentReceipt(phone, 200, balance);
+        
+        let response = `END ✅ Paid 200 KES!\nYour balance: ${balance} KES\nSMS receipt sent.\n`;
         
         // Check if reached 6000 KES target
         const reachedTarget = await db.hasReachedTarget(phone);
         
         if (reachedTarget && balance >= 6000) {
-            const user = await db.getUser(phone);
-            const landlordPhone = user?.landlord_phone || '254712345678'; // fallback landlord number
+            const landlordPhone = user?.landlord_phone || '254712345678';
             
             // Record month completion
             await db.completeMonth(phone, landlordPhone, 6000);
             
+            // Send month completion SMS to both parties
+            await sms.sendMonthCompleteMessage(phone, user?.name || 'Tenant', landlordPhone, 6000);
+            
             response += `\n🎉 CONGRATULATIONS! 🎉\n`;
             response += `You've reached 6,000 KES!\n`;
             response += `Your rent payment has been processed.\n`;
-            response += `Starting fresh for next month.`;
-            
-            // In the next step, we'll add real SMS here
-            console.log(`📱 MONTH COMPLETE: Tenant ${phone} paid 6000 KES to landlord ${landlordPhone}`);
+            response += `Starting fresh for next month.\n`;
+            response += `Check your phone for SMS!`;
         }
         
         return res.send(response);
@@ -60,15 +70,19 @@ app.post('/ussd', async (req, res) => {
     }
     
     if (text === '3') {
-        // My Info
-        const user = await db.getUser(phone);
-        if (user) {
-            const response = `END 📋 Name: ${user.name}\nBuilding: ${user.building}\nHouse: ${user.house}\nBalance: ${user.balance} KES`;
-            return res.send(response);
-        } else {
-            const response = `END You are not registered. Please contact your landlord.`;
+        // My Info - auto-register if new user
+        let user = await db.getUser(phone);
+        
+        if (!user) {
+            // Auto-register new user with placeholder name and landlord
+            await db.saveUser(phone, `User${phone.slice(-4)}`, 'Unknown Building', 'Unknown', '254712345678');
+            user = await db.getUser(phone);
+            const response = `END 📋 Welcome! You've been registered.\nName: ${user.name}\nBalance: 0 KES\n\nAsk your landlord to update your building details.`;
             return res.send(response);
         }
+        
+        const response = `END 📋 Name: ${user.name}\nBuilding: ${user.building}\nHouse: ${user.house}\nBalance: ${user.balance} KES\nLandlord: ${user.landlord_phone || 'Not set'}`;
+        return res.send(response);
     }
     
     // Default fallback
