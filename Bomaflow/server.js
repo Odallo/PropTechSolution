@@ -27,7 +27,28 @@ app.post('/ussd', async (req, res) => {
         // Pay 200 KES
         await db.addPayment(phone, 200);
         const balance = await db.getBalance(phone);
-        const response = `END ✅ Paid 200 KES!\nYour balance: ${balance} KES\nThank you for saving for rent.`;
+        
+        let response = `END ✅ Paid 200 KES!\nYour balance: ${balance} KES\n`;
+        
+        // Check if reached 6000 KES target
+        const reachedTarget = await db.hasReachedTarget(phone);
+        
+        if (reachedTarget && balance >= 6000) {
+            const user = await db.getUser(phone);
+            const landlordPhone = user?.landlord_phone || '254712345678'; // fallback landlord number
+            
+            // Record month completion
+            await db.completeMonth(phone, landlordPhone, 6000);
+            
+            response += `\n🎉 CONGRATULATIONS! 🎉\n`;
+            response += `You've reached 6,000 KES!\n`;
+            response += `Your rent payment has been processed.\n`;
+            response += `Starting fresh for next month.`;
+            
+            // In the next step, we'll add real SMS here
+            console.log(`📱 MONTH COMPLETE: Tenant ${phone} paid 6000 KES to landlord ${landlordPhone}`);
+        }
+        
         return res.send(response);
     }
     

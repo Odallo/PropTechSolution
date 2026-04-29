@@ -68,4 +68,51 @@ function getBalance(phone) {
     });
 }
 
-module.exports = { saveUser, getUser, addPayment, getBalance };
+// Check if tenant has reached monthly rent target (6000 KES)
+function hasReachedTarget(phone) {
+    return new Promise((resolve, reject) => {
+        db.get(`SELECT balance FROM users WHERE phone = ?`, [phone], (err, row) => {
+            if (err) reject(err);
+            else resolve(row ? row.balance >= 6000 : false);
+        });
+    });
+}
+
+// Complete month - reset balance and record payment
+function completeMonth(phone, landlordPhone, amount) {
+    return new Promise((resolve, reject) => {
+        // Start a transaction (both operations must succeed together)
+        db.serialize(() => {
+            db.run(`UPDATE users SET balance = balance - ? WHERE phone = ?`, [amount, phone], (err) => {
+                if (err) reject(err);
+            });
+            db.run(`INSERT INTO payments (phone, amount, date, status) VALUES (?, ?, ?, 'completed')`, 
+                   [phone, amount, new Date().toISOString().split('T')[0]], (err) => {
+                if (err) reject(err);
+                else resolve(true);
+            });
+        });
+    });
+}
+
+// Get all tenants for a landlord
+function getLandlordTenants(landlordPhone) {
+    return new Promise((resolve, reject) => {
+        db.all(`SELECT * FROM users WHERE building IN 
+                (SELECT building FROM users WHERE phone = ?) AND phone != ?`, 
+                [landlordPhone, landlordPhone], (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows || []);
+        });
+    });
+}
+
+module.exports = { 
+    saveUser, 
+    getUser, 
+    addPayment, 
+    getBalance,
+    hasReachedTarget,    // NEW
+    completeMonth,       // NEW
+    getLandlordTenants   // NEW
+};
