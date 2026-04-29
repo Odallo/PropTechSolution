@@ -12,7 +12,8 @@ db.serialize(() => {
         building TEXT,
         house TEXT,
         balance INTEGER DEFAULT 0,
-        landlord_phone TEXT
+        landlord_phone TEXT,
+        role TEXT DEFAULT 'tenant'
     )`);
     
     db.run(`CREATE TABLE IF NOT EXISTS payments (
@@ -109,6 +110,37 @@ function getLandlordTenants(landlordPhone) {
     });
 }
 
+// Get all tenants for a specific landlord
+function getTenantsByLandlord(landlordPhone) {
+    return new Promise((resolve, reject) => {
+        db.all(`SELECT * FROM users WHERE landlord_phone = ?`, [landlordPhone], (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows || []);
+        });
+    });
+}
+
+// Get monthly payments for a tenant (detailed)
+function getMonthlyPayments(phone) {
+    return new Promise((resolve, reject) => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        
+        const query = `
+            SELECT * FROM payments 
+            WHERE phone = ? 
+            AND strftime('%Y', date) = ? 
+            AND strftime('%m', date) = ?
+            ORDER BY date DESC
+        `;
+        db.all(query, [phone, year.toString(), month.toString().padStart(2, '0')], (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows || []);
+        });
+    });
+}
+
 module.exports = { 
     saveUser, 
     getUser, 
@@ -116,5 +148,7 @@ module.exports = {
     getBalance,
     hasReachedTarget,    // NEW
     completeMonth,       // NEW
-    getLandlordTenants   // NEW
+    getLandlordTenants,  // NEW
+    getTenantsByLandlord, // NEW
+    getMonthlyPayments   // NEW
 };

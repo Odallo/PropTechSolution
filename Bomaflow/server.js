@@ -89,9 +89,85 @@ app.post('/ussd', async (req, res) => {
     res.send(`END Invalid option. Try again.`);
 });
 
-// Health check
+// Landlord Dashboard - View all tenants
+app.get('/dashboard/:landlordPhone', async (req, res) => {
+    const landlordPhone = req.params.landlordPhone;
+    
+    // Get all tenants for this landlord
+    const tenants = await db.getTenantsByLandlord(landlordPhone);
+    
+    // Get payment history for each tenant
+    for (let tenant of tenants) {
+        tenant.payments = await db.getMonthlyPayments(tenant.phone);
+        tenant.recentPayments = tenant.payments.slice(-5); // Last 5 payments
+    }
+    
+    // Get total collected this month
+    let totalCollected = 0;
+    for (let tenant of tenants) {
+        totalCollected += tenant.balance;
+    }
+    
+    res.render('dashboard', {
+        landlordPhone,
+        tenants,
+        totalCollected,
+        currentDate: new Date().toLocaleDateString()
+    });
+});
+
+// API endpoint for dashboard (JSON version - for potential frontend AJAX)
+app.get('/api/landlord/:landlordPhone', async (req, res) => {
+    const landlordPhone = req.params.landlordPhone;
+    const tenants = await db.getTenantsByLandlord(landlordPhone);
+    
+    res.json({
+        landlord: landlordPhone,
+        tenants: tenants,
+        totalCollected: tenants.reduce((sum, t) => sum + t.balance, 0)
+    });
+});
+
+// Simple landing page with demo links
 app.get('/', (req, res) => {
-    res.json({ message: 'BomaFlow API is running', status: 'ok' });
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>BomaFlow</title>
+            <style>
+                body { font-family: Arial; max-width: 800px; margin: 50px auto; padding: 20px; }
+                h1 { color: #2c3e50; }
+                .demo-links { margin-top: 30px; }
+                a { display: block; margin: 10px 0; color: #3498db; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+                .code { background: #f4f4f4; padding: 10px; border-radius: 5px; font-family: monospace; }
+            </style>
+        </head>
+        <body>
+            <h1>🏠 BomaFlow</h1>
+            <p>Micro-savings for rent. Pay 200 KES daily, hit 6,000 KES monthly.</p>
+            
+            <h2>Demo Dashboards:</h2>
+            <div class="demo-links">
+                <a href="/dashboard/254712345678">📊 James Landlord (Sunrise Apartments)</a>
+                <a href="/dashboard/254799999999">📊 Another Landlord (Unity Towers)</a>
+            </div>
+            
+            <h2>USSD Testing:</h2>
+            <div class="code">
+                curl -X POST http://localhost:3000/ussd -d "phoneNumber=254711111111" -d "text=" -d "sessionId=test"
+            </div>
+            
+            <h2>Test Numbers:</h2>
+            <ul>
+                <li>Mary (Tenant): 254711111111 (600 KES balance)</li>
+                <li>John (Tenant): 254722222222 (0 KES balance)</li>
+                <li>Sarah (Tenant): 254733333333 (0 KES balance)</li>
+            </ul>
+        </body>
+        </html>
+    `);
 });
 
 // Start server
