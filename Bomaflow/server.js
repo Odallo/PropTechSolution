@@ -15,7 +15,7 @@ app.post('/ussd', async (req, res) => {
     
     // First menu (text is empty)
     if (text === '') {
-        const response = `CON Welcome to BomaFlow!\n`;
+        let response = `CON Welcome to BomaFlow!\n`;
         response += `1. Pay 200 KES\n`;
         response += `2. Check Balance\n`;
         response += `3. My Info`;
