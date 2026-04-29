@@ -29,35 +29,35 @@ async function sendSMS(phoneNumber, message) {
         };
         
         const response = await sms.send(options);
-        console.log(`✅ SMS sent to ${formattedPhone}`);
+        console.log(`SMS sent to ${formattedPhone}`);
         return response;
         
     } catch (error) {
-        console.error(`❌ SMS failed to ${phoneNumber}:`, error);
+        console.error(`SMS failed to ${phoneNumber}:`, error);
         return null;
     }
 }
 
 // Send daily reminder to a tenant
 async function sendDailyReminder(phone, name, balance, dailyAmount) {
-    const message = `🏠 BomaFlow: Hi ${name}! Time to save ${dailyAmount} KES for rent. Dial *384# now. Your current savings: ${balance} KES this month.`;
+    const message = `BomaFlow: Hi ${name}. Time to save ${dailyAmount} KES for rent. Dial *384# now. Your current savings: ${balance} KES this month.`;
     return await sendSMS(phone, message);
 }
 
 // Send payment receipt
 async function sendPaymentReceipt(phone, amount, newBalance) {
-    const message = `💰 BomaFlow Receipt: You've paid ${amount} KES. Total savings this month: ${newBalance} KES. Keep going! Dial *384# to pay again.`;
+    const message = `BomaFlow Receipt: You've paid ${amount} KES. Total savings this month: ${newBalance} KES. Dial *384# to pay again.`;
     return await sendSMS(phone, message);
 }
 
 // Send month-end completion message
 async function sendMonthCompleteMessage(tenantPhone, tenantName, landlordPhone, totalAmount) {
     // Message to tenant
-    const tenantMessage = `🎉 BomaFlow: Congratulations ${tenantName}! You've completed this month's rent of ${totalAmount} KES. Your landlord has been notified. Starting fresh for next month. Well done! 💪`;
+    const tenantMessage = `BomaFlow: Congratulations ${tenantName}. You've completed this month's rent of ${totalAmount} KES. Your landlord has been notified. Starting fresh for next month.`;
     await sendSMS(tenantPhone, tenantMessage);
     
     // Message to landlord
-    const landlordMessage = `🏢 BomaFlow Alert: Tenant ${tenantName} has completed rent payment of ${totalAmount} KES. Payment is ready for collection.`;
+    const landlordMessage = `BomaFlow Alert: Tenant ${tenantName} has completed rent payment of ${totalAmount} KES. Payment is ready for collection.`;
     await sendSMS(landlordPhone, landlordMessage);
 }
 

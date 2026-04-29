@@ -8,7 +8,7 @@ const dbPath = path.join(__dirname, 'bomaflow.db');
 const rawDb = new sqlite3.Database(dbPath);
 
 async function seed() {
-    console.log('🌱 Adding test users with roles...');
+    console.log('Adding test users with roles...');
     
     // Drop and recreate tables with role column
     rawDb.serialize(() => {
@@ -47,7 +47,7 @@ async function seed() {
     await db.addPayment('254711111111', 200);
     await db.addPayment('254711111111', 200);
     
-    console.log('✅ Test users added:');
+    console.log('Test users added:');
     console.log('   Landlord 1: 254712345678 (Sunrise Apartments)');
     console.log('   Landlord 2: 254799999999 (Unity Towers)');
     console.log('   Mary: 254711111111 (600 KES balance)');
@@ -55,7 +55,7 @@ async function seed() {
     console.log('   Sarah: 254733333333 (0 KES balance)');
     
     const maryBalance = await db.getBalance('254711111111');
-    console.log(`\n💰 Mary's balance: ${maryBalance} KES`);
+    console.log(`\nMary's balance: ${maryBalance} KES`);
     
     rawDb.close();
 }

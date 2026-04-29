@@ -46,7 +46,7 @@ app.post('/ussd', async (req, res) => {
         const sms = require('./sms');
         await sms.sendPaymentReceipt(phone, dailyAmount, balance);
         
-        let response = `END ✅ Paid ${dailyAmount} KES!\nYour balance: ${balance} KES\nSMS receipt sent.\n`;
+        let response = `END Paid ${dailyAmount} KES!\nYour balance: ${balance} KES\nSMS receipt sent.\n`;
         
         // Check if reached personal target
         const reachedTarget = await db.hasReachedTarget(phone);
@@ -60,7 +60,7 @@ app.post('/ussd', async (req, res) => {
             // Send month completion SMS to both parties
             await sms.sendMonthCompleteMessage(phone, user?.name || 'Tenant', landlordPhone, targetRent);
             
-            response += `\n🎉 CONGRATULATIONS! 🎉\n`;
+            response += `\nCONGRATULATIONS!\n`;
             response += `You've reached ${targetRent} KES!\n`;
             response += `Your rent payment has been processed.\n`;
             response += `Starting fresh for next month.\n`;
@@ -73,7 +73,7 @@ app.post('/ussd', async (req, res) => {
     if (text === '2') {
         // Check balance
         const balance = await db.getBalance(phone);
-        const response = `END 💰 Your current rent savings: ${balance} KES\nKeep going!`;
+        const response = `END Your current rent savings: ${balance} KES`;
         return res.send(response);
     }
     
@@ -85,11 +85,11 @@ app.post('/ussd', async (req, res) => {
             // Auto-register new user with placeholder name and landlord
             await db.saveUser(phone, `User${phone.slice(-4)}`, 'Unknown Building', 'Unknown', '254712345678');
             user = await db.getUser(phone);
-            const response = `END 📋 Welcome! You've been registered.\nName: ${user.name}\nBalance: 0 KES\n\nAsk your landlord to update your building details.`;
+            const response = `END Welcome! You've been registered.\nName: ${user.name}\nBalance: 0 KES\n\nAsk your landlord to update your building details.`;
             return res.send(response);
         }
         
-        const response = `END 📋 Name: ${user.name}\nBuilding: ${user.building}\nHouse: ${user.house}\nRent: ${user.monthly_rent || 6000} KES\nBalance: ${user.balance} KES\nLandlord: ${user.landlord_phone || 'Not set'}`;
+        const response = `END Name: ${user.name}\nBuilding: ${user.building}\nHouse: ${user.house}\nRent: ${user.monthly_rent || 6000} KES\nBalance: ${user.balance} KES\nLandlord: ${user.landlord_phone || 'Not set'}`;
         return res.send(response);
     }
     
@@ -153,13 +153,13 @@ app.get('/', (req, res) => {
             </style>
         </head>
         <body>
-            <h1>🏠 BomaFlow</h1>
+            <h1>BomaFlow</h1>
             <p>Micro-savings for rent. Pay your daily portion to hit your monthly rent target.</p>
             
             <h2>Demo Dashboards:</h2>
             <div class="demo-links">
-                <a href="/dashboard/254712345678">📊 James Landlord (Sunrise Apartments)</a>
-                <a href="/dashboard/254799999999">📊 Another Landlord (Unity Towers)</a>
+                <a href="/dashboard/254712345678">James Landlord (Sunrise Apartments)</a>
+                <a href="/dashboard/254799999999">Another Landlord (Unity Towers)</a>
             </div>
             
             <h2>USSD Testing:</h2>
@@ -181,6 +181,6 @@ app.get('/', (req, res) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`✅ BomaFlow running on http://localhost:${PORT}`);
-    console.log(`📱 USSD endpoint: POST http://localhost:${PORT}/ussd`);
+    console.log(`BomaFlow running on http://localhost:${PORT}`);
+    console.log(`USSD endpoint: POST http://localhost:${PORT}/ussd`);
 });
