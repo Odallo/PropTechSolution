@@ -89,7 +89,7 @@ app.post('/ussd', async (req, res) => {
             return res.send(response);
         }
         
-        const response = `END 📋 Name: ${user.name}\nBuilding: ${user.building}\nHouse: ${user.house}\nBalance: ${user.balance} KES\nLandlord: ${user.landlord_phone || 'Not set'}`;
+        const response = `END 📋 Name: ${user.name}\nBuilding: ${user.building}\nHouse: ${user.house}\nRent: ${user.monthly_rent || 6000} KES\nBalance: ${user.balance} KES\nLandlord: ${user.landlord_phone || 'Not set'}`;
         return res.send(response);
     }
     
