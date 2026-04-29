@@ -20,8 +20,12 @@ app.post('/ussd', async (req, res) => {
     
     // First menu (text is empty)
     if (text === '') {
+        let user = await db.getUser(phone);
+        let targetRent = user ? (user.monthly_rent || 6000) : 6000;
+        let dailyAmount = Math.ceil(targetRent / 30);
+
         let response = `CON Welcome to BomaFlow!\n`;
-        response += `1. Pay 200 KES\n`;
+        response += `1. Pay ${dailyAmount} KES\n`;
         response += `2. Check Balance\n`;
         response += `3. My Info`;
         return res.send(response);
@@ -29,31 +33,35 @@ app.post('/ussd', async (req, res) => {
     
     // Handle menu choices
     if (text === '1') {
-        // Pay 200 KES
-        await db.addPayment(phone, 200);
+        let user = await db.getUser(phone);
+        let targetRent = user ? (user.monthly_rent || 6000) : 6000;
+        let dailyAmount = Math.ceil(targetRent / 30);
+
+        // Pay dynamic amount
+        await db.addPayment(phone, dailyAmount);
         const balance = await db.getBalance(phone);
-        const user = await db.getUser(phone);
+        user = await db.getUser(phone);
         
         // Send SMS receipt
         const sms = require('./sms');
-        await sms.sendPaymentReceipt(phone, 200, balance);
+        await sms.sendPaymentReceipt(phone, dailyAmount, balance);
         
-        let response = `END ✅ Paid 200 KES!\nYour balance: ${balance} KES\nSMS receipt sent.\n`;
+        let response = `END ✅ Paid ${dailyAmount} KES!\nYour balance: ${balance} KES\nSMS receipt sent.\n`;
         
-        // Check if reached 6000 KES target
+        // Check if reached personal target
         const reachedTarget = await db.hasReachedTarget(phone);
         
-        if (reachedTarget && balance >= 6000) {
+        if (reachedTarget && balance >= targetRent) {
             const landlordPhone = user?.landlord_phone || '254712345678';
             
             // Record month completion
-            await db.completeMonth(phone, landlordPhone, 6000);
+            await db.completeMonth(phone, landlordPhone, targetRent);
             
             // Send month completion SMS to both parties
-            await sms.sendMonthCompleteMessage(phone, user?.name || 'Tenant', landlordPhone, 6000);
+            await sms.sendMonthCompleteMessage(phone, user?.name || 'Tenant', landlordPhone, targetRent);
             
             response += `\n🎉 CONGRATULATIONS! 🎉\n`;
-            response += `You've reached 6,000 KES!\n`;
+            response += `You've reached ${targetRent} KES!\n`;
             response += `Your rent payment has been processed.\n`;
             response += `Starting fresh for next month.\n`;
             response += `Check your phone for SMS!`;
@@ -146,7 +154,7 @@ app.get('/', (req, res) => {
         </head>
         <body>
             <h1>🏠 BomaFlow</h1>
-            <p>Micro-savings for rent. Pay 200 KES daily, hit 6,000 KES monthly.</p>
+            <p>Micro-savings for rent. Pay your daily portion to hit your monthly rent target.</p>
             
             <h2>Demo Dashboards:</h2>
             <div class="demo-links">

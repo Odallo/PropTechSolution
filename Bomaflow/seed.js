@@ -29,9 +29,9 @@ async function seed() {
     rawDb.run(`UPDATE users SET role = 'landlord' WHERE phone = '254712345678'`);
     
     // Add tenants
-    await db.saveUser('254711111111', 'Mary Wanjiku', 'Sunrise Apartments', 'A1', '254712345678');
-    await db.saveUser('254722222222', 'John Otieno', 'Sunrise Apartments', 'B2', '254712345678');
-    await db.saveUser('254733333333', 'Sarah Mwangi', 'Unity Towers', 'C3', '254799999999');
+    await db.saveUser('254711111111', 'Mary Wanjiku', 'Sunrise Apartments', 'A1', '254712345678', 6000);
+    await db.saveUser('254722222222', 'John Otieno', 'Sunrise Apartments', 'B2', '254712345678', 9000);
+    await db.saveUser('254733333333', 'Sarah Mwangi', 'Unity Towers', 'C3', '254799999999', 15000);
     
     // Set tenant roles
     rawDb.run(`UPDATE users SET role = 'tenant' WHERE phone = '254711111111'`);
@@ -42,7 +42,7 @@ async function seed() {
     await db.saveUser('254799999999', 'Peter Landlord', 'Unity Towers', 'Office', null);
     rawDb.run(`UPDATE users SET role = 'landlord' WHERE phone = '254799999999'`);
     
-    // Add some payments for Mary
+    // Add some payments for Mary (assuming daily is 6000/30 = 200)
     await db.addPayment('254711111111', 200);
     await db.addPayment('254711111111', 200);
     await db.addPayment('254711111111', 200);

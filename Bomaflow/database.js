@@ -13,7 +13,8 @@ db.serialize(() => {
         house TEXT,
         balance INTEGER DEFAULT 0,
         landlord_phone TEXT,
-        role TEXT DEFAULT 'tenant'
+        role TEXT DEFAULT 'tenant',
+        monthly_rent INTEGER DEFAULT 6000
     )`);
     
     db.run(`CREATE TABLE IF NOT EXISTS payments (
@@ -25,11 +26,11 @@ db.serialize(() => {
 });
 
 // Helper functions
-function saveUser(phone, name, building, house, landlord_phone = null) {
+function saveUser(phone, name, building, house, landlord_phone = null, monthly_rent = 6000) {
     return new Promise((resolve, reject) => {
-        db.run(`INSERT OR REPLACE INTO users (phone, name, building, house, balance, landlord_phone) 
-                VALUES (?, ?, ?, ?, ?, ?)`, 
-                [phone, name, building, house, 0, landlord_phone], (err) => {
+        db.run(`INSERT OR REPLACE INTO users (phone, name, building, house, balance, landlord_phone, monthly_rent) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)`, 
+                [phone, name, building, house, 0, landlord_phone, monthly_rent], (err) => {
             if (err) reject(err);
             else resolve();
         });
@@ -71,12 +72,12 @@ function getBalance(phone) {
     });
 }
 
-// Check if tenant has reached monthly rent target (6000 KES)
+// Check if tenant has reached their personal monthly rent target
 function hasReachedTarget(phone) {
     return new Promise((resolve, reject) => {
-        db.get(`SELECT balance FROM users WHERE phone = ?`, [phone], (err, row) => {
+        db.get(`SELECT balance, monthly_rent FROM users WHERE phone = ?`, [phone], (err, row) => {
             if (err) reject(err);
-            else resolve(row ? row.balance >= 6000 : false);
+            else resolve(row ? row.balance >= (row.monthly_rent || 6000) : false);
         });
     });
 }

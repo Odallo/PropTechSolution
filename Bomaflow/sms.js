@@ -39,8 +39,8 @@ async function sendSMS(phoneNumber, message) {
 }
 
 // Send daily reminder to a tenant
-async function sendDailyReminder(phone, name, balance) {
-    const message = `🏠 BomaFlow: Hi ${name}! Time to save 200 KES for rent. Dial *384# now. Your current savings: ${balance} KES this month.`;
+async function sendDailyReminder(phone, name, balance, dailyAmount) {
+    const message = `🏠 BomaFlow: Hi ${name}! Time to save ${dailyAmount} KES for rent. Dial *384# now. Your current savings: ${balance} KES this month.`;
     return await sendSMS(phone, message);
 }
 
