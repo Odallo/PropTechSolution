@@ -150,6 +150,29 @@ app.post('/ussd', async (req, res) => {
 app.get('/dashboard/:landlordPhone', async (req, res) => {
     const landlordPhone = req.params.landlordPhone;
     
+    // Check if this is a valid landlord
+    const landlord = await db.getUser(landlordPhone);
+    if (!landlord || landlord.role !== 'landlord') {
+        return res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>BomaFlow - Dashboard Not Found</title>
+                <style>
+                    body { font-family: Arial; text-align: center; margin-top: 100px; }
+                    h1 { color: #e74c3c; }
+                    a { color: #3498db; text-decoration: none; }
+                </style>
+            </head>
+            <body>
+                <h1>Dashboard Not Found</h1>
+                <p>This landlord dashboard is not available.</p>
+                <a href="/">Go to Main Page</a>
+            </body>
+            </html>
+        `);
+    }
+    
     // Get all tenants for this landlord
     const tenants = await db.getTenantsByLandlord(landlordPhone);
     
@@ -209,10 +232,9 @@ app.get('/', (req, res) => {
             <h1>BomaFlow</h1>
             <p>Micro-savings for rent. Pay your daily portion to hit your monthly rent target.</p>
             
-            <h2>Demo Dashboards:</h2>
+            <h2>Landlord Dashboard:</h2>
             <div class="demo-links">
                 <a href="/dashboard/254712345678">James Landlord (Sunrise Apartments)</a>
-                <a href="/dashboard/254799999999">Peter Landlord (Unity Towers)</a>
             </div>
             
             <h2>USSD Testing:</h2>
@@ -222,9 +244,9 @@ app.get('/', (req, res) => {
             
             <h2>Test Numbers:</h2>
             <ul>
-                <li>Mary (Tenant): 254711111111 (600 KES balance)</li>
-                <li>John (Tenant): 254722222222 (300 KES balance)</li>
-                <li>Sarah (Tenant): 254733333333 (0 KES balance)</li>
+                <li>Mary (Tenant): 254711111111 (600 KES balance, 6,000 KES rent)</li>
+                <li>John (Tenant): 254722222222 (0 KES balance, 9,000 KES rent)</li>
+                <li>Sarah (Tenant): 254733333333 (0 KES balance, 15,000 KES rent)</li>
             </ul>
         </body>
         </html>
