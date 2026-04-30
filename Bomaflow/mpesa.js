@@ -27,38 +27,53 @@ const MPESA_URLS = {
 async function getAccessToken() {
     return new Promise((resolve, reject) => {
         const auth = Buffer.from(`${config.consumerKey}:${config.consumerSecret}`).toString('base64');
-        const url = MPESA_URLS[config.environment].oauth;
+        
+        // Try using the full URL instead of hostname/path
+        const url = config.environment === 'sandbox' 
+            ? 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+            : 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
         
         const options = {
-            hostname: config.environment === 'sandbox' ? 'sandbox.safaricom.co.ke' : 'api.safaricom.co.ke',
-            path: '/oauth/v1/generate?grant_type=client_credentials',
             method: 'GET',
             headers: {
                 'Authorization': `Basic ${auth}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'User-Agent': 'BomaFlow/1.0'
             }
         };
         
-        const req = https.request(options, (res) => {
+        console.log('OAuth URL:', url);
+        console.log('OAuth Headers:', options.headers);
+        
+        const req = https.request(url, options, (res) => {
             let data = '';
+            console.log('OAuth Response Status:', res.statusCode);
+            
             res.on('data', (chunk) => {
                 data += chunk;
             });
             res.on('end', () => {
+                console.log('OAuth Response Data:', data);
                 try {
+                    if (!data || data.trim() === '') {
+                        reject(new Error('Empty response from OAuth endpoint'));
+                        return;
+                    }
                     const response = JSON.parse(data);
                     if (response.access_token) {
                         resolve(response.access_token);
                     } else {
-                        reject(new Error('Failed to get access token'));
+                        reject(new Error('No access token in response'));
                     }
                 } catch (error) {
-                    reject(error);
+                    console.error('OAuth JSON Parse Error:', error.message);
+                    reject(new Error(`Failed to parse OAuth response: ${error.message}`));
                 }
             });
         });
         
         req.on('error', (error) => {
+            console.error('OAuth Request Error:', error.message);
             reject(error);
         });
         
@@ -106,10 +121,7 @@ async function sendSTKPush(phoneNumber, amount, accountReference, transactionDes
             throw new Error('Invalid phone number format');
         }
         
-        // Get access token
-        const accessToken = await getAccessToken();
-        
-        // Prepare STK Push request
+        // Prepare STK Push request first
         const timestamp = getTimestamp();
         const password = getPassword();
         
@@ -122,10 +134,13 @@ async function sendSTKPush(phoneNumber, amount, accountReference, transactionDes
             PartyA: formattedPhone,
             PartyB: config.shortcode,
             PhoneNumber: formattedPhone,
-            CallBackURL: 'https://your-domain.com/mpesa/callback',
+            CallBackURL: process.env.MPESA_CALLBACK_URL || 'https://your-domain.com/mpesa/callback',
             AccountReference: accountReference,
             TransactionDesc: transactionDesc
         };
+        
+        // Get access token and immediately use it
+        const accessToken = await getAccessToken();
         
         // Make STK Push request
         const response = await makeSTKPushRequest(accessToken, requestBody);
@@ -149,36 +164,52 @@ async function sendSTKPush(phoneNumber, amount, accountReference, transactionDes
 // Make STK Push HTTP request
 function makeSTKPushRequest(accessToken, requestBody) {
     return new Promise((resolve, reject) => {
-        const url = MPESA_URLS[config.environment].stkpush;
         const postData = JSON.stringify(requestBody);
         
+        // Try using full URL like OAuth
+        const url = config.environment === 'sandbox' 
+            ? 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
+            : 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
+        
         const options = {
-            hostname: config.environment === 'sandbox' ? 'sandbox.safaricom.co.ke' : 'api.safaricom.co.ke',
-            path: '/mpesa/stkpush/v1/processrequest',
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData)
+                'Content-Length': Buffer.byteLength(postData),
+                'User-Agent': 'BomaFlow/1.0',
+                'Accept': 'application/json'
             }
         };
         
-        const req = https.request(options, (res) => {
+        console.log('STK Push URL:', url);
+        console.log('STK Push Request:', JSON.stringify(requestBody, null, 2));
+        
+        const req = https.request(url, options, (res) => {
             let data = '';
+            console.log('STK Push Response Status:', res.statusCode);
+            
             res.on('data', (chunk) => {
                 data += chunk;
             });
             res.on('end', () => {
+                console.log('STK Push Response Data:', data);
                 try {
+                    if (!data || data.trim() === '') {
+                        reject(new Error('Empty response from M-Pesa API'));
+                        return;
+                    }
                     const response = JSON.parse(data);
                     resolve(response);
                 } catch (error) {
-                    reject(error);
+                    console.error('STK Push JSON Parse Error:', error.message);
+                    reject(new Error(`Failed to parse M-Pesa response: ${error.message}`));
                 }
             });
         });
         
         req.on('error', (error) => {
+            console.error('STK Push Request Error:', error.message);
             reject(error);
         });
         

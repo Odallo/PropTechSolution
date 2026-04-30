@@ -69,38 +69,46 @@ app.post('/ussd', async (req, res) => {
                 return res.send(response);
             }
         } catch (error) {
-            console.error('M-Pesa STK Push error:', error);
-            // Fallback to manual payment if M-Pesa fails
-            await db.addPayment(phone, dailyAmount);
-            const balance = await db.getBalance(phone);
-            user = await db.getUser(phone);
+            console.error('M-Pesa STK Push error:', error.message);
             
-            // Send SMS receipt
-            const sms = require('./sms');
-            await sms.sendPaymentReceipt(phone, dailyAmount, balance);
-            
-            let response = `END Paid ${dailyAmount} KES!\nYour balance: ${balance} KES\nSMS receipt sent.\n`;
-            
-            // Check if reached personal target
-            const reachedTarget = await db.hasReachedTarget(phone);
-            
-            if (reachedTarget && balance >= targetRent) {
-                const landlordPhone = user?.landlord_phone || '254712345678';
+            try {
+                // Fallback to manual payment if M-Pesa fails
+                await db.addPayment(phone, dailyAmount);
+                const balance = await db.getBalance(phone);
+                user = await db.getUser(phone);
                 
-                // Record month completion
-                await db.completeMonth(phone, landlordPhone, targetRent);
+                // Send SMS receipt
+                const sms = require('./sms');
+                await sms.sendPaymentReceipt(phone, dailyAmount, balance);
                 
-                // Send month completion SMS to both parties
-                await sms.sendMonthCompleteMessage(phone, user?.name || 'Tenant', landlordPhone, targetRent);
+                let response = `END Paid ${dailyAmount} KES!\nYour balance: ${balance} KES\nSMS receipt sent.\n`;
                 
-                response += `\nCONGRATULATIONS!\n`;
-                response += `You've reached ${targetRent} KES!\n`;
-                response += `Your rent payment has been processed.\n`;
-                response += `Starting fresh for next month.\n`;
-                response += `Check your phone for SMS!`;
+                // Check if reached personal target
+                const reachedTarget = await db.hasReachedTarget(phone);
+                
+                if (reachedTarget && balance >= targetRent) {
+                    const landlordPhone = user?.landlord_phone || '254712345678';
+                    
+                    // Record month completion
+                    await db.completeMonth(phone, landlordPhone, targetRent);
+                    
+                    // Send month completion SMS to both parties
+                    await sms.sendMonthCompleteMessage(phone, user?.name || 'Tenant', landlordPhone, targetRent);
+                    
+                    response += `\nCONGRATULATIONS!\n`;
+                    response += `You've reached ${targetRent} KES!\n`;
+                    response += `Your rent payment has been processed.\n`;
+                    response += `Starting fresh for next month.\n`;
+                    response += `Check your phone for SMS!`;
+                }
+                
+                return res.send(response);
+                
+            } catch (fallbackError) {
+                console.error('Manual payment fallback error:', fallbackError.message);
+                const response = `END Payment system temporarily unavailable.\nPlease try again later or contact your landlord directly.`;
+                return res.send(response);
             }
-            
-            return res.send(response);
         }
     }
     

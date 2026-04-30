@@ -3,9 +3,9 @@ const africastalking = require('africastalking');
 
 // Test basic API connection
 async function testAPIConnection() {
-    console.log('Testing Africa\'s Talking API connection...');
+    console.log('Testing Africa\'s Talking API Connection...');
     console.log('Username:', process.env.AFRICASTALKING_USERNAME);
-    console.log('API Key:', process.env.AFRICASTALKING_API_KEY ? '✅ Loaded' : '❌ Missing');
+    console.log('API Key:', process.env.AFRICASTALKING_API_KEY ? 'Loaded' : 'Missing');
     
     try {
         const credentials = {
@@ -29,10 +29,10 @@ async function testAPIConnection() {
         console.log('Test options:', JSON.stringify(testOptions, null, 2));
         
         const response = await sms.send(testOptions);
-        console.log('✅ API Response:', JSON.stringify(response, null, 2));
+        console.log('API Response:', JSON.stringify(response, null, 2));
         
     } catch (error) {
-        console.error('❌ API Connection failed:', error.message);
+        console.error('API Connection failed:', error.message);
         console.error('Full error:', error);
         
         // Try alternative approach
@@ -50,10 +50,10 @@ async function testAPIConnection() {
             };
             
             const altResponse = await AT.SMS.send(altOptions);
-            console.log('✅ Alternative API Response:', JSON.stringify(altResponse, null, 2));
+            console.log('Alternative API Response:', JSON.stringify(altResponse, null, 2));
             
         } catch (altError) {
-            console.error('❌ Alternative approach also failed:', altError.message);
+            console.error('Alternative approach also failed:', altError.message);
         }
     }
 }

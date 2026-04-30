@@ -3,7 +3,7 @@ const { sendSMS } = require('./sms');
 
 async function testSMS() {
     console.log('Testing SMS functionality...');
-    console.log('API Key:', process.env.AFRICASTALKING_API_KEY ? '✅ Loaded' : '❌ Missing');
+    console.log('API Key:', process.env.AFRICASTALKING_API_KEY ? 'Loaded' : 'Missing');
     console.log('Username:', process.env.AFRICASTALKING_USERNAME);
     console.log('Sender ID:', process.env.AFRICASTALKING_SENDER_ID);
     
@@ -23,14 +23,14 @@ async function testSMS() {
             const result = await sendSMS(phone, testMessage);
             
             if (result) {
-                console.log('✅ SMS sent successfully!');
+                console.log('SMS sent successfully!');
                 console.log('Response:', JSON.stringify(result, null, 2));
                 break; // Stop if successful
             } else {
-                console.log('❌ SMS failed to send');
+                console.log('SMS failed to send');
             }
         } catch (error) {
-            console.error('❌ Test failed:', error.message);
+            console.error('Test failed:', error.message);
         }
     }
 }
