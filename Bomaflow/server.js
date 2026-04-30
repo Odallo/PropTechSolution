@@ -211,28 +211,11 @@ app.post('/ussd', async (req, res) => {
 app.get('/dashboard/:landlordPhone', async (req, res) => {
     const landlordPhone = req.params.landlordPhone;
     
-    // Check if this is a valid landlord
+    // Get landlord data (don't auto-create for demo)
     const landlord = await db.getUser(landlordPhone);
-    if (!landlord || landlord.role !== 'landlord') {
-        return res.send(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>BomaFlow - Dashboard Not Found</title>
-                <style>
-                    body { font-family: Arial; text-align: center; margin-top: 100px; }
-                    h1 { color: #e74c3c; }
-                    a { color: #3498db; text-decoration: none; }
-                </style>
-            </head>
-            <body>
-                <h1>Dashboard Not Found</h1>
-                <p>This landlord dashboard is not available.</p>
-                <a href="/">Go to Main Page</a>
-            </body>
-            </html>
-        `);
-    }
+    
+    // For demo purposes, allow dashboard access even if landlord doesn't exist
+    // In production, you might want to restrict this to actual landlords only
     
     // Get all tenants for this landlord
     const tenants = await db.getTenantsByLandlord(landlordPhone);
