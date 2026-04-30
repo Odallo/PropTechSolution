@@ -609,6 +609,9 @@
                         <div class="repair-description"><%= repair.issue_type %>: <%= repair.description %></div>
                         <div class="repair-date">Reported: <%= new Date(repair.date).toLocaleDateString() %></div>
                         <div class="repair-status"><%= repair.status || 'Pending' %></div>
+                        <button class="btn-remove-repair" onclick="removeRepair('<%= repair.id %>', '<%= repair.issue_type %>')">
+                            Mark as Fixed
+                        </button>
                     </div>
                 <% }) %>
             <% } else { %>
@@ -682,6 +685,33 @@
                 } catch (error) {
                     showMessage('Error removing tenant. Please try again.', 'error');
                 }
+            }
+        }
+        
+        // Remove Repair functionality
+        async function removeRepair(repairId, issueType) {
+            if (!confirm(`Are you sure this ${issueType} has been fixed and should be removed?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/repairs/${repairId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    // Reload page after a short delay to show updated list
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showMessage(result.message || 'Failed to remove repair request', 'error');
+                }
+            } catch (error) {
+                showMessage('Error removing repair request. Please try again.', 'error');
             }
         }
         
@@ -785,17 +815,33 @@
         }
         
         .btn-remove-tenant {
-            background: var(--accent);
-            color: var(--accent-foreground);
+            background: var(--destructive);
+            color: var(--secondary-foreground);
             border: none;
             padding: 8px 16px;
-            border-radius: var(--radius-md);
-            font-family: var(--font-body);
-            font-weight: 600;
-            font-size: 0.85rem;
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-remove-repair {
+            background: var(--primary);
+            color: var(--primary-foreground);
+            border: none;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
             margin-top: 12px;
+        }
+        
+        .btn-remove-repair:hover {
+            background: #4a5c47;
+            transform: translateY(-1px);
         }
         
         .btn-remove-tenant:hover {

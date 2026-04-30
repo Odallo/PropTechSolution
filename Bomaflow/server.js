@@ -489,6 +489,33 @@ app.post('/mpesa/callback', async (req, res) => {
     }
 });
 
+// API endpoint to remove repair request
+app.delete('/api/repairs/:repairId', async (req, res) => {
+    try {
+        const repairId = req.params.repairId;
+        const result = await db.removeRepair(repairId);
+        
+        if (result.deleted) {
+            res.json({ 
+                success: true, 
+                message: 'Repair request removed successfully' 
+            });
+        } else {
+            res.status(404).json({ 
+                success: false, 
+                message: 'Repair request not found' 
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error removing repair request:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Failed to remove repair request' 
+        });
+    }
+});
+
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

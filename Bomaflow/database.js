@@ -182,17 +182,38 @@ function saveRepair(phone, issue_type, description) {
 // Get repair requests for landlord
 function getLandlordRepairs(landlordPhone) {
     return new Promise((resolve, reject) => {
+        // Standardize landlord phone format
+        const standardizedLandlordPhone = landlordPhone.replace(/^\+/, '').replace(/^\s+/, '');
+        
         const query = `
             SELECT r.*, u.name, u.house, u.building 
             FROM repairs r
-            JOIN users u ON r.phone = u.phone
-            WHERE u.landlord_phone = ?
+            JOIN users u ON (
+                r.phone = u.phone OR 
+                r.phone = '+' || u.phone OR 
+                r.phone = ' ' || u.phone OR
+                r.phone = '+' || REPLACE(u.phone, ' ', '') OR
+                REPLACE(r.phone, '+', '') = REPLACE(u.phone, '+', '') OR
+                REPLACE(r.phone, '+', '') = REPLACE(u.phone, ' ', '')
+            )
+            WHERE u.landlord_phone = ? OR u.landlord_phone = '+' || ? OR u.landlord_phone = ' ' || ?
             ORDER BY r.date DESC
             LIMIT 10
         `;
-        db.all(query, [landlordPhone], (err, rows) => {
+        db.all(query, [standardizedLandlordPhone, standardizedLandlordPhone, standardizedLandlordPhone], (err, rows) => {
             if (err) reject(err);
             else resolve(rows || []);
+        });
+    });
+}
+
+// Remove repair request
+function removeRepair(repairId) {
+    return new Promise((resolve, reject) => {
+        const query = `DELETE FROM repairs WHERE id = ?`;
+        db.run(query, [repairId], function(err) {
+            if (err) reject(err);
+            else resolve({ deleted: this.changes > 0 });
         });
     });
 }
@@ -289,19 +310,20 @@ function updateTenant(phone, updates) {
     });
 }
 
-module.exports = { 
+module.exports = {
     saveUser, 
     getUser, 
-    addPayment, 
+    addPayment,
     getBalance,
-    hasReachedTarget,    // NEW
-    completeMonth,       // NEW
-    getLandlordTenants,  // NEW
-    getTenantsByLandlord, // NEW
-    getMonthlyPayments,   // NEW
-    saveRepair,          // NEW
-    getLandlordRepairs,   // NEW
-    addTenant,           // NEW
-    removeTenant,        // NEW
-    updateTenant         // NEW
+    hasReachedTarget,
+    completeMonth,
+    getLandlordTenants,  
+    getTenantsByLandlord, 
+    getMonthlyPayments,   
+    saveRepair,          
+    getLandlordRepairs,   
+    removeRepair,        
+    addTenant,           
+    removeTenant,        
+    updateTenant         
 };
