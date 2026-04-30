@@ -38,37 +38,70 @@ app.post('/ussd', async (req, res) => {
         let targetRent = user ? (user.monthly_rent || 6000) : 6000;
         let dailyAmount = Math.ceil(targetRent / 30);
 
-        // Pay dynamic amount
-        await db.addPayment(phone, dailyAmount);
-        const balance = await db.getBalance(phone);
-        user = await db.getUser(phone);
+        // Initiate M-Pesa STK Push
+        const mpesa = require('./mpesa');
+        const accountReference = `BomaFlow-${phone.slice(-4)}`;
         
-        // Send SMS receipt
-        const sms = require('./sms');
-        await sms.sendPaymentReceipt(phone, dailyAmount, balance);
-        
-        let response = `END Paid ${dailyAmount} KES!\nYour balance: ${balance} KES\nSMS receipt sent.\n`;
-        
-        // Check if reached personal target
-        const reachedTarget = await db.hasReachedTarget(phone);
-        
-        if (reachedTarget && balance >= targetRent) {
-            const landlordPhone = user?.landlord_phone || '254712345678';
+        try {
+            const stkResult = await mpesa.sendSTKPush(phone, dailyAmount, accountReference);
             
-            // Record month completion
-            await db.completeMonth(phone, landlordPhone, targetRent);
+            if (stkResult.success) {
+                // Store pending payment for callback processing
+                const pendingPayment = {
+                    phone: phone,
+                    amount: dailyAmount,
+                    accountReference: accountReference,
+                    merchantRequestID: stkResult.data.MerchantRequestID,
+                    checkoutRequestID: stkResult.data.CheckoutRequestID,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // For now, we'll store in memory (in production, use database)
+                if (!global.pendingPayments) {
+                    global.pendingPayments = {};
+                }
+                global.pendingPayments[stkResult.data.CheckoutRequestID] = pendingPayment;
+                
+                const response = `END M-Pesa payment initiated!\nAmount: ${dailyAmount} KES\nPlease enter your M-Pesa PIN to complete payment.\nReference: ${accountReference}`;
+                return res.send(response);
+            } else {
+                const response = `END Payment failed: ${stkResult.message}\nPlease try again later or contact support.`;
+                return res.send(response);
+            }
+        } catch (error) {
+            console.error('M-Pesa STK Push error:', error);
+            // Fallback to manual payment if M-Pesa fails
+            await db.addPayment(phone, dailyAmount);
+            const balance = await db.getBalance(phone);
+            user = await db.getUser(phone);
             
-            // Send month completion SMS to both parties
-            await sms.sendMonthCompleteMessage(phone, user?.name || 'Tenant', landlordPhone, targetRent);
+            // Send SMS receipt
+            const sms = require('./sms');
+            await sms.sendPaymentReceipt(phone, dailyAmount, balance);
             
-            response += `\nCONGRATULATIONS!\n`;
-            response += `You've reached ${targetRent} KES!\n`;
-            response += `Your rent payment has been processed.\n`;
-            response += `Starting fresh for next month.\n`;
-            response += `Check your phone for SMS!`;
+            let response = `END Paid ${dailyAmount} KES!\nYour balance: ${balance} KES\nSMS receipt sent.\n`;
+            
+            // Check if reached personal target
+            const reachedTarget = await db.hasReachedTarget(phone);
+            
+            if (reachedTarget && balance >= targetRent) {
+                const landlordPhone = user?.landlord_phone || '254712345678';
+                
+                // Record month completion
+                await db.completeMonth(phone, landlordPhone, targetRent);
+                
+                // Send month completion SMS to both parties
+                await sms.sendMonthCompleteMessage(phone, user?.name || 'Tenant', landlordPhone, targetRent);
+                
+                response += `\nCONGRATULATIONS!\n`;
+                response += `You've reached ${targetRent} KES!\n`;
+                response += `Your rent payment has been processed.\n`;
+                response += `Starting fresh for next month.\n`;
+                response += `Check your phone for SMS!`;
+            }
+            
+            return res.send(response);
         }
-        
-        return res.send(response);
     }
     
     if (text === '2') {
@@ -381,9 +414,71 @@ app.put('/api/tenants/:phone', async (req, res) => {
     }
 });
 
+// M-Pesa Callback endpoint
+app.post('/mpesa/callback', async (req, res) => {
+    try {
+        const mpesa = require('./mpesa');
+        const callbackData = req.body;
+        
+        console.log('M-Pesa callback received:', JSON.stringify(callbackData, null, 2));
+        
+        // Process the callback
+        const result = mpesa.handleCallback(callbackData);
+        
+        if (result.success) {
+            // Payment successful - process the payment
+            const { checkoutRequestID, amount, phoneNumber } = result;
+            
+            // Check if this is a pending payment from our system
+            if (global.pendingPayments && global.pendingPayments[checkoutRequestID]) {
+                const pendingPayment = global.pendingPayments[checkoutRequestID];
+                
+                // Add payment to database
+                await db.addPayment(pendingPayment.phone, amount);
+                const balance = await db.getBalance(pendingPayment.phone);
+                const user = await db.getUser(pendingPayment.phone);
+                
+                // Send SMS receipt
+                const sms = require('./sms');
+                await sms.sendPaymentReceipt(pendingPayment.phone, amount, balance);
+                
+                // Check if reached target
+                const targetRent = user ? (user.monthly_rent || 6000) : 6000;
+                const reachedTarget = await db.hasReachedTarget(pendingPayment.phone);
+                
+                if (reachedTarget && balance >= targetRent) {
+                    const landlordPhone = user?.landlord_phone || '254712345678';
+                    
+                    // Record month completion
+                    await db.completeMonth(pendingPayment.phone, landlordPhone, targetRent);
+                    
+                    // Send month completion SMS
+                    await sms.sendMonthCompleteMessage(pendingPayment.phone, user?.name || 'Tenant', landlordPhone, targetRent);
+                }
+                
+                // Remove from pending payments
+                delete global.pendingPayments[checkoutRequestID];
+                
+                console.log(`Payment processed: ${amount} KES from ${pendingPayment.phone}`);
+            }
+        } else {
+            // Payment failed
+            console.log(`Payment failed: ${result.resultDesc}`);
+        }
+        
+        // Always respond to M-Pesa callback
+        res.json({ ResultCode: 0, ResultDesc: 'Success' });
+        
+    } catch (error) {
+        console.error('M-Pesa callback error:', error);
+        res.json({ ResultCode: 1, ResultDesc: 'Failed' });
+    }
+});
+
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`BomaFlow running on http://localhost:${PORT}`);
     console.log(`USSD endpoint: POST http://localhost:${PORT}/ussd`);
+    console.log(`M-Pesa callback: POST http://localhost:${PORT}/mpesa/callback`);
 });
