@@ -181,6 +181,92 @@ function getLandlordRepairs(landlordPhone) {
     });
 }
 
+// Add new tenant
+function addTenant(phone, name, building, house, landlordPhone, monthlyRent = 6000) {
+    return new Promise((resolve, reject) => {
+        // Check if phone already exists
+        db.get(`SELECT phone FROM users WHERE phone = ?`, [phone], (err, row) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            
+            if (row) {
+                reject(new Error('Phone number already exists'));
+                return;
+            }
+            
+            // Add new tenant
+            const query = `
+                INSERT INTO users (phone, name, building, house, balance, landlord_phone, monthly_rent, role)
+                VALUES (?, ?, ?, ?, 0, ?, ?, 'tenant')
+            `;
+            db.run(query, [phone, name, building, house, landlordPhone, monthlyRent], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve({ id: this.lastID, phone, name, building, house, monthlyRent });
+                }
+            });
+        });
+    });
+}
+
+// Remove tenant
+function removeTenant(phone) {
+    return new Promise((resolve, reject) => {
+        // First delete related records (payments, repairs)
+        const deletePayments = `DELETE FROM payments WHERE phone = ?`;
+        const deleteRepairs = `DELETE FROM repairs WHERE phone = ?`;
+        const deleteTenant = `DELETE FROM users WHERE phone = ?`;
+        
+        db.serialize(() => {
+            db.run(deletePayments, [phone]);
+            db.run(deleteRepairs, [phone]);
+            db.run(deleteTenant, [phone], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve({ deleted: this.changes > 0 });
+                }
+            });
+        });
+    });
+}
+
+// Update tenant details
+function updateTenant(phone, updates) {
+    return new Promise((resolve, reject) => {
+        const allowedFields = ['name', 'building', 'house', 'monthly_rent'];
+        const fields = [];
+        const values = [];
+        
+        // Build dynamic update query
+        for (const [key, value] of Object.entries(updates)) {
+            if (allowedFields.includes(key)) {
+                fields.push(`${key} = ?`);
+                values.push(value);
+            }
+        }
+        
+        if (fields.length === 0) {
+            reject(new Error('No valid fields to update'));
+            return;
+        }
+        
+        values.push(phone);
+        const query = `UPDATE users SET ${fields.join(', ')} WHERE phone = ?`;
+        
+        db.run(query, values, function(err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve({ updated: this.changes > 0 });
+            }
+        });
+    });
+}
+
 module.exports = { 
     saveUser, 
     getUser, 
@@ -192,5 +278,8 @@ module.exports = {
     getTenantsByLandlord, // NEW
     getMonthlyPayments,   // NEW
     saveRepair,          // NEW
-    getLandlordRepairs   // NEW
+    getLandlordRepairs,   // NEW
+    addTenant,           // NEW
+    removeTenant,        // NEW
+    updateTenant         // NEW
 };

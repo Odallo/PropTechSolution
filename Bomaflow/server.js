@@ -273,6 +273,114 @@ app.get('/', (req, res) => {
     `);
 });
 
+// Tenant Management API Endpoints
+
+// Add new tenant
+app.post('/api/tenants', async (req, res) => {
+    try {
+        const { phone, name, building, house, monthlyRent, landlordPhone } = req.body;
+        
+        // Validate required fields
+        if (!phone || !name || !building || !house || !landlordPhone) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Missing required fields: phone, name, building, house, landlordPhone' 
+            });
+        }
+        
+        // Validate phone number format
+        if (!/^254\d{9}$/.test(phone)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid phone number format. Use format: 254XXXXXXXXX' 
+            });
+        }
+        
+        // Add tenant
+        const result = await db.addTenant(phone, name, building, house, landlordPhone, monthlyRent);
+        
+        res.json({ 
+            success: true, 
+            message: 'Tenant added successfully',
+            tenant: result
+        });
+        
+    } catch (error) {
+        console.error('Error adding tenant:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Failed to add tenant' 
+        });
+    }
+});
+
+// Remove tenant
+app.delete('/api/tenants/:phone', async (req, res) => {
+    try {
+        const phone = req.params.phone;
+        
+        // Validate phone number format
+        if (!/^254\d{9}$/.test(phone)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid phone number format' 
+            });
+        }
+        
+        // Remove tenant
+        const result = await db.removeTenant(phone);
+        
+        if (result.deleted) {
+            res.json({ 
+                success: true, 
+                message: 'Tenant removed successfully' 
+            });
+        } else {
+            res.status(404).json({ 
+                success: false, 
+                message: 'Tenant not found' 
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error removing tenant:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Failed to remove tenant' 
+        });
+    }
+});
+
+// Update tenant
+app.put('/api/tenants/:phone', async (req, res) => {
+    try {
+        const phone = req.params.phone;
+        const updates = req.body;
+        
+        // Update tenant
+        const result = await db.updateTenant(phone, updates);
+        
+        if (result.updated) {
+            res.json({ 
+                success: true, 
+                message: 'Tenant updated successfully' 
+            });
+        } else {
+            res.status(404).json({ 
+                success: false, 
+                message: 'Tenant not found or no valid fields to update' 
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error updating tenant:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Failed to update tenant' 
+        });
+    }
+});
+
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

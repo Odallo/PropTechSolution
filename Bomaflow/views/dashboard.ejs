@@ -552,10 +552,40 @@
                             <div class="status-badge <%= tenant.balance >= (tenant.monthly_rent || 6000) ? 'status-complete' : 'status-incomplete' %>">
                                 <%= tenant.balance >= (tenant.monthly_rent || 6000) ? 'Complete' : 'In Progress' %>
                             </div>
+                            <button class="btn-remove-tenant" onclick="removeTenant('<%= tenant.phone %>', '<%= tenant.name %>')">
+                                Remove
+                            </button>
                         </div>
                     <% }) %>
                 </div>
             <% } %>
+        </div>
+        
+        <!-- Tenant Management -->
+        <div class="tenant-management-section">
+            <h2>Manage Tenants</h2>
+            
+            <!-- Add Tenant Form -->
+            <div class="add-tenant-form">
+                <h3>Add New Tenant</h3>
+                <form id="addTenantForm">
+                    <div class="form-row">
+                        <input type="text" id="tenantName" placeholder="Tenant Name" required>
+                        <input type="tel" id="tenantPhone" placeholder="Phone (254XXXXXXXXX)" pattern="254[0-9]{9}" required>
+                    </div>
+                    <div class="form-row">
+                        <input type="text" id="tenantBuilding" placeholder="Building Name" required>
+                        <input type="text" id="tenantHouse" placeholder="House Number" required>
+                    </div>
+                    <div class="form-row">
+                        <input type="number" id="tenantRent" placeholder="Monthly Rent (KES)" value="6000" min="1000">
+                        <input type="hidden" id="landlordPhone" value="<%= landlordPhone %>">
+                    </div>
+                    <button type="submit" class="btn-add-tenant">Add Tenant</button>
+                </form>
+            </div>
+            
+            <div id="tenantMessage" class="tenant-message"></div>
         </div>
         
         <!-- Repair Requests -->
@@ -581,5 +611,213 @@
             <span>BomaFlow - Daily Rent Micro-Savings</span>
         </div>
     </div>
+    
+    <script>
+        // Add Tenant functionality
+        document.getElementById('addTenantForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                phone: document.getElementById('tenantPhone').value,
+                name: document.getElementById('tenantName').value,
+                building: document.getElementById('tenantBuilding').value,
+                house: document.getElementById('tenantHouse').value,
+                monthlyRent: parseInt(document.getElementById('tenantRent').value),
+                landlordPhone: document.getElementById('landlordPhone').value
+            };
+            
+            try {
+                const response = await fetch('/api/tenants', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('Tenant added successfully! Refreshing...', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showMessage(result.message || 'Failed to add tenant', 'error');
+                }
+            } catch (error) {
+                showMessage('Error adding tenant. Please try again.', 'error');
+            }
+        });
+        
+        // Remove Tenant functionality
+        async function removeTenant(phone, name) {
+            if (confirm(`Are you sure you want to remove ${name}? This will delete all their payment and repair history.`)) {
+                try {
+                    const response = await fetch(`/api/tenants/${phone}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showMessage('Tenant removed successfully! Refreshing...', 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        showMessage(result.message || 'Failed to remove tenant', 'error');
+                    }
+                } catch (error) {
+                    showMessage('Error removing tenant. Please try again.', 'error');
+                }
+            }
+        }
+        
+        // Show message function
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('tenantMessage');
+            messageDiv.textContent = message;
+            messageDiv.className = `tenant-message ${type}`;
+            messageDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+    
+    <style>
+        /* Tenant Management Styles */
+        .tenant-management-section {
+            background: var(--muted);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tenant-management-section::before {
+            content: '';
+            position: absolute;
+            top: -10%;
+            right: -5%;
+            width: 25%;
+            height: 35%;
+            background: var(--primary);
+            border-radius: 60% 40% 30% 70%;
+            filter: blur(2.5rem);
+            opacity: 0.08;
+        }
+        
+        .add-tenant-form {
+            background: var(--background);
+            padding: 24px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        
+        .add-tenant-form h3 {
+            font-family: var(--font-heading);
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--foreground);
+            margin-bottom: 20px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .form-row input {
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            background: var(--background);
+            color: var(--foreground);
+            transition: all 0.3s ease;
+        }
+        
+        .form-row input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(93, 112, 82, 0.1);
+        }
+        
+        .btn-add-tenant {
+            background: var(--primary);
+            color: var(--primary-foreground);
+            border: none;
+            padding: 12px 24px;
+            border-radius: var(--radius-lg);
+            font-family: var(--font-heading);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        .btn-add-tenant:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .btn-remove-tenant {
+            background: var(--accent);
+            color: var(--accent-foreground);
+            border: none;
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            font-family: var(--font-body);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 12px;
+        }
+        
+        .btn-remove-tenant:hover {
+            background: #d4a574;
+            transform: translateY(-1px);
+        }
+        
+        .tenant-message {
+            padding: 16px;
+            border-radius: var(--radius-md);
+            margin-top: 16px;
+            font-family: var(--font-body);
+            font-weight: 500;
+            display: none;
+        }
+        
+        .tenant-message.success {
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+        
+        .tenant-message.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </body>
 </html>
