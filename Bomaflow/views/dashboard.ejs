@@ -515,12 +515,21 @@
                 <div class="value"><%= tenants.length %></div>
             </div>
             <div class="stat-card">
+                <h3>Monthly Rent Target</h3>
+                <div class="value">KES <%= monthlyRentTarget %></div>
+            </div>
+            <div class="stat-card">
                 <h3>Total Collected This Month</h3>
                 <div class="value">KES <%= totalCollected %></div>
             </div>
             <div class="stat-card">
-                <h3>Rent Target per Tenant</h3>
-                <div class="value">KES 6,000</div>
+                <h3>Monthly Progress</h3>
+                <div class="value"><%= Math.round(monthlyProgress) %>%</div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: <%= Math.min(monthlyProgress, 100) %>%;"></div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -539,9 +548,11 @@
                                 <div class="tenant-detail">House: <%= tenant.house %></div>
                                 <div class="tenant-detail">Building: <%= tenant.building %></div>
                                 <div class="tenant-detail">Phone: <%= tenant.phone %></div>
+                                <div class="tenant-detail">Daily Payment: KES <%= tenant.dailyAmount %></div>
+                                <div class="tenant-detail">Monthly Rent: KES <%= tenant.monthly_rent || 6000 %></div>
                             </div>
                             <div class="tenant-balance <%= tenant.balance >= (tenant.monthly_rent || 6000) ? 'complete' : 'incomplete' %>">
-                                KES <%= tenant.balance %>
+                                Balance: KES <%= tenant.balance %>
                             </div>
                             <div class="progress-container">
                                 <div class="progress-bar">

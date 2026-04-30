@@ -35,11 +35,16 @@ db.serialize(() => {
 });
 
 // Helper functions
-function saveUser(phone, name, building, house, landlord_phone = null, monthly_rent = 6000) {
+function saveUser(phone, name, building, house, landlord_phone, monthlyRent = 6000) {
     return new Promise((resolve, reject) => {
-        db.run(`INSERT OR REPLACE INTO users (phone, name, building, house, balance, landlord_phone, monthly_rent) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)`, 
-                [phone, name, building, house, 0, landlord_phone, monthly_rent], (err) => {
+        // Standardize phone number format (remove + and spaces)
+        const standardizedPhone = phone.replace(/^\+/, '').replace(/^\s+/, '');
+        const standardizedLandlordPhone = landlord_phone.replace(/^\+/, '').replace(/^\s+/, '');
+        
+        db.run(`INSERT INTO users 
+                (phone, name, building, house, balance, landlord_phone, role, monthly_rent) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
+                [standardizedPhone, name, building, house, 0, standardizedLandlordPhone, 'tenant', monthlyRent], (err) => {
             if (err) reject(err);
             else resolve();
         });
@@ -48,7 +53,18 @@ function saveUser(phone, name, building, house, landlord_phone = null, monthly_r
 
 function getUser(phone) {
     return new Promise((resolve, reject) => {
-        db.get(`SELECT * FROM users WHERE phone = ?`, [phone], (err, row) => {
+        // Standardize phone number format (remove + and spaces)
+        const standardizedPhone = phone.replace(/^\+/, '').replace(/^\s+/, '');
+        
+        // Try to find user with various formats
+        const phoneWithPlus = '+' + standardizedPhone;
+        const phoneWithoutPlus = standardizedPhone;
+        const phoneWithSpace = ' ' + standardizedPhone;
+        const phoneWithSpaceAndPlus = ' ' + phoneWithPlus;
+        
+        db.get(`SELECT * FROM users WHERE phone IN (?, ?, ?, ?) LIMIT 1`, 
+               [phoneWithPlus, phoneWithoutPlus, phoneWithSpace, phoneWithSpaceAndPlus], 
+               (err, row) => {
             if (err) reject(err);
             else resolve(row);
         });
@@ -215,15 +231,21 @@ function addTenant(phone, name, building, house, landlordPhone, monthlyRent = 60
 // Remove tenant
 function removeTenant(phone) {
     return new Promise((resolve, reject) => {
-        // First delete related records (payments, repairs)
-        const deletePayments = `DELETE FROM payments WHERE phone = ?`;
-        const deleteRepairs = `DELETE FROM repairs WHERE phone = ?`;
-        const deleteTenant = `DELETE FROM users WHERE phone = ?`;
+        // Handle various phone formats (with/without +, with/without spaces)
+        const phoneWithPlus = phone.startsWith('+') ? phone : '+' + phone;
+        const phoneWithoutPlus = phone.startsWith('+') ? phone.substring(1) : phone;
+        const phoneWithSpace = ' ' + phoneWithoutPlus;
+        const phoneWithSpaceAndPlus = ' ' + phoneWithPlus;
+        
+        // First delete related records (payments, repairs) for all formats
+        const deletePayments = `DELETE FROM payments WHERE phone IN (?, ?, ?, ?)`;
+        const deleteRepairs = `DELETE FROM repairs WHERE phone IN (?, ?, ?, ?)`;
+        const deleteTenant = `DELETE FROM users WHERE phone IN (?, ?, ?, ?)`;
         
         db.serialize(() => {
-            db.run(deletePayments, [phone]);
-            db.run(deleteRepairs, [phone]);
-            db.run(deleteTenant, [phone], function(err) {
+            db.run(deletePayments, [phoneWithPlus, phoneWithoutPlus, phoneWithSpace, phoneWithSpaceAndPlus]);
+            db.run(deleteRepairs, [phoneWithPlus, phoneWithoutPlus, phoneWithSpace, phoneWithSpaceAndPlus]);
+            db.run(deleteTenant, [phoneWithPlus, phoneWithoutPlus, phoneWithSpace, phoneWithSpaceAndPlus], function(err) {
                 if (err) {
                     reject(err);
                 } else {

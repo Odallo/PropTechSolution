@@ -18,14 +18,25 @@ app.post('/ussd', async (req, res) => {
     
     console.log(`USSD Request from ${phone}: text = "${text}"`);
     
+    // ALWAYS fetch user data first for any request
+    let user = await db.getUser(phone);
+    let balance = await db.getBalance(phone);
+    
     // First menu (text is empty)
     if (text === '') {
-        let user = await db.getUser(phone);
-        let targetRent = user ? (user.monthly_rent || 6000) : 6000;
+        // If user doesn't exist, register them first
+        if (!user) {
+            // Auto-register with default info, but you might want to customize this
+            await db.saveUser(phone, 'New Tenant', 'Building A', 'A1', '254712345678');
+            user = await db.getUser(phone);
+            balance = await db.getBalance(phone);
+        }
+        
+        let targetRent = user.monthly_rent || 6000;
         let dailyAmount = Math.ceil(targetRent / 30);
 
         let response = `CON Welcome to BomaFlow!\n`;
-        response += `1. Pay ${dailyAmount} KES\n`;
+        response += `1. Pay ${dailyAmount} KES (Daily)\n`;
         response += `2. Check Balance\n`;
         response += `3. My Info\n`;
         response += `4. Report Repair`;
@@ -34,8 +45,8 @@ app.post('/ussd', async (req, res) => {
     
     // Handle menu choices
     if (text === '1') {
-        let user = await db.getUser(phone);
-        let targetRent = user ? (user.monthly_rent || 6000) : 6000;
+        // Use already fetched user data
+        let targetRent = user.monthly_rent || 6000;
         let dailyAmount = Math.ceil(targetRent / 30);
 
         // Initiate M-Pesa STK Push
@@ -113,25 +124,24 @@ app.post('/ussd', async (req, res) => {
     }
     
     if (text === '2') {
-        // Check balance
-        const balance = await db.getBalance(phone);
+        // Check balance - use already fetched balance
         const response = `END Your current rent savings: ${balance} KES`;
         return res.send(response);
     }
     
     if (text === '3') {
-        // My Info - auto-register if new user
-        let user = await db.getUser(phone);
+        // My Info - use already fetched user data
         
         if (!user) {
             // Auto-register new user with placeholder name and landlord
             await db.saveUser(phone, `User${phone.slice(-4)}`, 'Unknown Building', 'Unknown', '254712345678');
             user = await db.getUser(phone);
-            const response = `END Welcome! You've been registered.\nName: ${user.name}\nBalance: 0 KES\n\nAsk your landlord to update your building details.`;
+            balance = await db.getBalance(phone);
+            const response = `END Welcome! You've been registered.\nName: ${user.name}\nBuilding: ${user.building}\nHouse: ${user.house}\nRent: ${user.monthly_rent || 6000} KES\nBalance: ${balance} KES\nLandlord: ${user.landlord_phone || 'Not set'}\n\nAsk your landlord to update your details.`;
             return res.send(response);
         }
         
-        const response = `END Name: ${user.name}\nBuilding: ${user.building}\nHouse: ${user.house}\nRent: ${user.monthly_rent || 6000} KES\nBalance: ${user.balance} KES\nLandlord: ${user.landlord_phone || 'Not set'}`;
+        const response = `END Name: ${user.name}\nBuilding: ${user.building}\nHouse: ${user.house}\nRent: ${user.monthly_rent || 6000} KES\nBalance: ${balance} KES\nLandlord: ${user.landlord_phone || 'Not set'}`;
         return res.send(response);
     }
     
@@ -149,7 +159,12 @@ app.post('/ussd', async (req, res) => {
     if (text.startsWith('4*')) {
         const parts = text.split('*');
         const repairType = parts[1];
-        let user = await db.getUser(phone);
+        
+        // Use already fetched user data
+        if (!user) {
+            const response = `END User not found. Please contact your landlord.`;
+            return res.send(response);
+        }
         
         if (repairType === '1') {
             await db.saveRepair(phone, 'Water Issue', 'Water leak or plumbing problem reported via USSD');
@@ -220,10 +235,13 @@ app.get('/dashboard/:landlordPhone', async (req, res) => {
     // Get all tenants for this landlord
     const tenants = await db.getTenantsByLandlord(landlordPhone);
     
-    // Get payment history for each tenant
+    // Calculate monthly rent target and get payment history for each tenant
+    let monthlyRentTarget = 0;
     for (let tenant of tenants) {
+        tenant.dailyAmount = Math.ceil((tenant.monthly_rent || 6000) / 30);
         tenant.payments = await db.getMonthlyPayments(tenant.phone);
         tenant.recentPayments = tenant.payments.slice(-5); // Last 5 payments
+        monthlyRentTarget += tenant.monthly_rent || 6000;
     }
     
     // Get total collected this month
@@ -232,6 +250,9 @@ app.get('/dashboard/:landlordPhone', async (req, res) => {
         totalCollected += tenant.balance;
     }
     
+    // Calculate monthly progress
+    const monthlyProgress = monthlyRentTarget > 0 ? (totalCollected / monthlyRentTarget) * 100 : 0;
+    
     // Get repair requests for this landlord
     const repairs = await db.getLandlordRepairs(landlordPhone);
     
@@ -239,6 +260,8 @@ app.get('/dashboard/:landlordPhone', async (req, res) => {
         landlordPhone,
         tenants,
         totalCollected,
+        monthlyRentTarget,
+        monthlyProgress,
         repairs,
         currentDate: new Date().toLocaleDateString()
     });
