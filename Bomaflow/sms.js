@@ -15,14 +15,22 @@ async function sendSMS(phoneNumber, message) {
         // Format phone number for Africa's Talking - keep + sign for validation
         let formattedPhone = phoneNumber.toString();
         
-        // If starts with 0, replace with +254
+        // Remove any + sign first
+        if (formattedPhone.startsWith('+')) {
+            formattedPhone = formattedPhone.substring(1);
+        }
+        
+        // If starts with 0, replace with 254
         if (formattedPhone.startsWith('0')) {
-            formattedPhone = '+254' + formattedPhone.substring(1);
+            formattedPhone = '254' + formattedPhone.substring(1);
         }
-        // If doesn't start with +254, add +254
-        else if (!formattedPhone.startsWith('+254')) {
-            formattedPhone = '+254' + formattedPhone;
+        // If doesn't start with 254, add 254
+        else if (!formattedPhone.startsWith('254')) {
+            formattedPhone = '254' + formattedPhone;
         }
+        
+        // Add + sign for Africa's Talking
+        formattedPhone = '+' + formattedPhone;
         
         // Ensure it's exactly 13 characters (+254 + 9 digits)
         if (formattedPhone.length !== 13) {

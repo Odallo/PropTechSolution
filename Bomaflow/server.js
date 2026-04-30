@@ -54,6 +54,7 @@ app.post('/ussd', async (req, res) => {
         const accountReference = `BomaFlow-${phone.slice(-4)}`;
         
         try {
+            console.log('About to call M-Pesa with phone:', phone, 'length:', phone.length);
             const stkResult = await mpesa.sendSTKPush(phone, dailyAmount, accountReference);
             
             if (stkResult.success) {

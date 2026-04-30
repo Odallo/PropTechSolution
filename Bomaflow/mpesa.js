@@ -109,7 +109,13 @@ async function sendSTKPush(phoneNumber, amount, accountReference, transactionDes
             throw new Error('Invalid phone number format');
         }
         
-        console.log('Processing M-Pesa payment:', { phone: formattedPhone, amount, reference: accountReference });
+        console.log('Processing M-Pesa payment:', { 
+            originalPhone: phoneNumber, 
+            formattedPhone: formattedPhone, 
+            amount, 
+            reference: accountReference,
+            formattedLength: formattedPhone.length 
+        });
         
         // Try real M-Pesa first
         const timestamp = getTimestamp();
