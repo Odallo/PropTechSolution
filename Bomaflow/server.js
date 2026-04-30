@@ -112,18 +112,33 @@ app.post('/ussd', async (req, res) => {
         
         if (repairType === '1') {
             await db.saveRepair(phone, 'Water Issue', 'Water leak or plumbing problem reported via USSD');
+            
+            // Send SMS notification to landlord
+            const sms = require('./sms');
+            await sms.sendRepairNotification(user.landlord_phone, user.name, user.house, 'Water Issue', 'Water leak or plumbing problem');
+            
             const response = `END Repair request submitted!\nIssue: Water Issue\nWe'll notify your landlord.\nReference: ${phone.slice(-4)}`;
             return res.send(response);
         }
         
         if (repairType === '2') {
             await db.saveRepair(phone, 'Electrical Problem', 'Electrical issue reported via USSD');
+            
+            // Send SMS notification to landlord
+            const sms = require('./sms');
+            await sms.sendRepairNotification(user.landlord_phone, user.name, user.house, 'Electrical Problem', 'Electrical issue reported via USSD');
+            
             const response = `END Repair request submitted!\nIssue: Electrical Problem\nWe'll notify your landlord.\nReference: ${phone.slice(-4)}`;
             return res.send(response);
         }
         
         if (repairType === '3') {
             await db.saveRepair(phone, 'Structural Issue', 'Structural problem reported via USSD');
+            
+            // Send SMS notification to landlord
+            const sms = require('./sms');
+            await sms.sendRepairNotification(user.landlord_phone, user.name, user.house, 'Structural Issue', 'Structural problem reported via USSD');
+            
             const response = `END Repair request submitted!\nIssue: Structural Issue\nWe'll notify your landlord.\nReference: ${phone.slice(-4)}`;
             return res.send(response);
         }
@@ -137,6 +152,11 @@ app.post('/ussd', async (req, res) => {
         if (parts[1] === '4' && parts[2]) {
             const description = parts[2].substring(0, 100); // Limit to 100 chars
             await db.saveRepair(phone, 'Other Issue', description);
+            
+            // Send SMS notification to landlord
+            const sms = require('./sms');
+            await sms.sendRepairNotification(user.landlord_phone, user.name, user.house, 'Other Issue', description);
+            
             const response = `END Repair request submitted!\nIssue: ${description}\nWe'll notify your landlord.\nReference: ${phone.slice(-4)}`;
             return res.send(response);
         }
